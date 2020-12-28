@@ -1,0 +1,4 @@
+vendor/
+.terraform/
+tfui
+terraform.tfstate
