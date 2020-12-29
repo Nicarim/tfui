@@ -3,24 +3,21 @@ package internal
 import (
 	"github.com/gdamore/tcell/v2"
 	"github.com/rivo/tview"
-	"strings"
 	"tfui/internal/tf"
 )
 
 var app = tview.NewApplication()
 var pages = tview.NewPages()
 var list = tview.NewList()
-var tfStateList []string = nil
+var tfStateList []tf.StateOp = nil
 
 func GetListFrame() *tview.Frame {
-	tfState := tf.GetStateList()
-	tfStateList = strings.Split(tfState, "\n")
+	tfStateList = tf.GetStateList()
+
 	list.ShowSecondaryText(false).
 		SetSelectedFunc(listSelectHandler)
 	for _, el := range tfStateList {
-		if el != "" {
-			list.AddItem(el, "", 0, nil)
-		}
+		list.AddItem(el.OriginalName, "", 0, nil)
 	}
 	list.AddItem("Quit", "Press to exit", 'q', nil)
 
@@ -29,7 +26,7 @@ func GetListFrame() *tview.Frame {
 	return frame
 }
 
-func GetRenameView(s string) *tview.Flex {
+func GetRenameView(index int, s *tf.StateOp) *tview.Flex {
 	modalFunc := func(p tview.Primitive, width, height int) *tview.Flex {
 		return tview.NewFlex().
 			AddItem(nil, 0, 1, false).
@@ -40,13 +37,19 @@ func GetRenameView(s string) *tview.Flex {
 			AddItem(nil, 0, 1, false)
 	}
 
-	form := tview.NewForm().
-		AddInputField("Rename To", s, 30, nil, nil).
+	form := tview.NewForm()
+	form.
+		AddInputField("Rename To", s.OriginalName, 30, nil, func(text string) {
+			s.NewName = text
+			s.Op = tf.RenameOp
+		}).
 		AddButton("Accept", func() {
 			pages.RemovePage("modal")
+			refreshByIndex(index)
 		}).
 		AddButton("Cancel", func() {
 			pages.RemovePage("modal")
+			refreshByIndex(index)
 		}).
 		SetButtonsAlign(tview.AlignCenter)
 
@@ -63,6 +66,13 @@ func RenderList() {
 	}
 }
 
+func refreshByIndex(index int) {
+	tfStateAtIndex := tfStateList[index]
+	list.RemoveItem(index)
+	list.InsertItem(index, "[red]"+tfStateAtIndex.OriginalName+" -> [green] "+tfStateAtIndex.NewName, "", 0, nil)
+	list.SetCurrentItem(index)
+}
+
 func listSelectHandler(index int, _ string, _ string, shortcut rune) {
 	if shortcut == 'q' {
 		app.Stop()
@@ -71,11 +81,7 @@ func listSelectHandler(index int, _ string, _ string, shortcut rune) {
 	if tfStateList == nil {
 		panic("tfstatelist is empty despite using handler")
 	}
-	tfStateSelected := tfStateList[index]
-	modal := GetRenameView(tfStateSelected)
+	modal := GetRenameView(index, &tfStateList[index])
 	pages.AddPage("modal", modal, true, true)
 	pages.ShowPage("modal")
-	//list.RemoveItem(index)
-	//list.InsertItem(index, "[red]" + tfStateSelected, "", 0, nil)
-	//list.SetCurrentItem(index)
 }

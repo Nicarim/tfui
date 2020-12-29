@@ -6,9 +6,24 @@ import (
 	"os"
 	"os/exec"
 	"path"
+	"strings"
 )
 
-func GetStateList() string {
+type TfOp int
+
+const (
+	NoOp TfOp = iota
+	RenameOp
+	DeleteOp
+)
+
+type StateOp struct {
+	OriginalName string
+	NewName      string
+	Op           TfOp
+}
+
+func GetStateList() []StateOp {
 	cmd := exec.Command("terraform", "state", "list")
 	cwd, err := os.Getwd()
 	if err != nil {
@@ -21,5 +36,18 @@ func GetStateList() string {
 		log.Println(cmdErr)
 	}
 
-	return string(output)
+	tfStateList := strings.Split(string(output), "\n")
+
+	var tfStateOpList []StateOp
+
+	for _, s := range tfStateList {
+		if s != "" {
+			tfStateOpList = append(tfStateOpList, StateOp{
+				OriginalName: s,
+				Op:           NoOp,
+			})
+		}
+	}
+
+	return tfStateOpList
 }
